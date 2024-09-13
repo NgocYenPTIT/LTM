@@ -10,34 +10,65 @@ package LTM;
  */
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.util.Scanner;
 
 public class UDPServer {
-    public static void main(String[] args) {
-        int port = 1234; // Cổng để lắng nghe các gói tin từ client
+    private static final int PORT = 8888; // Cổng để lắng nghe các gói tin từ client
+    private static final String HOST = "localhost" ;  
+    private static final Scanner sc = new Scanner(System.in) ;  
+    public static void main(String[] args) throws Exception{
+        try (DatagramSocket datagramSocket = new DatagramSocket(PORT)) {
+            System.out.println("Server is listening on port " + PORT);
+            Thread readThread = new Thread(() -> {
+                while(true){
+                    try {
+                    byte[] buffer = new byte[1024] ; 
+                DatagramPacket packet = new DatagramPacket(buffer , buffer.length) ; 
+                datagramSocket.receive(packet);
+                
+                // get message
+               String clientMessage = new String(packet.getData() , 0 , packet.getLength());
+               
+               // get port
+               int clientPort = packet.getPort() ;
+               
+               // get address
+               InetAddress clientAddress = packet.getAddress() ;
+               
+               // message
+                System.out.println("clientPort: " + clientPort);
+                System.out.println("clientAddress: " + clientAddress);
+                System.out.println("clientMessage: " + clientMessage);
+                System.out.println("-----------------------------------\n");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                }
+            });
+            Thread writeThread = new Thread(() -> {
+                while(true){
+                    try {
+                    String message = sc.nextLine() ;
+                    InetAddress clientAdress  = InetAddress.getByName("localhost");
+                    DatagramPacket packet = new DatagramPacket(message.getBytes(),message.length() ,clientAdress , 3000);
+                    datagramSocket.send(packet);
+                    System.out.println("Server says: " + message);
+                    System.out.println("-----------------------------------\n");
 
-        try (DatagramSocket socket = new DatagramSocket(port)) {
-            System.out.println("Server is listening on port " + port);
-
-            // Bộ đệm để nhận dữ liệu
-            byte[] buffer = new byte[1024];
-
-            // Tạo DatagramPacket để nhận dữ liệu từ client
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            socket.receive(packet); // Nhận gói tin từ client
-            String clientMessage = new String(packet.getData(), 0, packet.getLength());
-            System.out.println("Client says: " + clientMessage);
-
-            // Gửi phản hồi lại cho client
-            String response = "Thank you, client!";
-            byte[] responseBytes = response.getBytes();
-            InetAddress clientAddress = packet.getAddress();
-            int clientPort = packet.getPort();
-            DatagramPacket responsePacket = new DatagramPacket(responseBytes, responseBytes.length, clientAddress, clientPort);
-            socket.send(responsePacket); // Gửi gói tin phản hồi
-
-            System.out.println("Response sent to the client.");
-
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                }
+            });
+            
+            readThread.start();
+            writeThread.start();
+            
+            readThread.join();
+            writeThread.join();
+            
         } catch (Exception e) {
             System.out.println("Server exception: " + e.getMessage());
             e.printStackTrace();
